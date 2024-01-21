@@ -1415,7 +1415,6 @@ void cmdq_thread_dump(struct mbox_chan *chan, struct cmdq_pkt *cl_pkt,
 		break;
 	}
 	spin_unlock_irqrestore(&chan->lock, flags);
-
 	cmdq_util_user_msg(chan,
 		"thd:%u pc:%#010x(%p) inst:%#018llx end:%#010x cnt:%#x token:%#010x",
 		thread->idx, curr_pa, curr_va, inst, end_pa, cnt, wait_token);
