@@ -1709,8 +1709,8 @@ int force_get_tbat_internal(bool update)
 
 int force_get_tbat(bool update)
 {
-	int bat_temperature_val = 0;
-	int counts = 0;
+	//int bat_temperature_val = 0;
+	//int counts = 0;
 
 	if (is_fg_disabled()) {
 		bm_debug("[%s] fixed TBAT=25 t\n",
@@ -1719,7 +1719,8 @@ int force_get_tbat(bool update)
 		return 25;
 	}
 
-#if defined(FIXED_TBAT_25)
+//#if defined(FIXED_TBAT_25)
+#if 1
 	bm_debug("[%s] fixed TBAT=25 t\n", __func__);
 	gm.tbat_precise = 250;
 	return 25;
