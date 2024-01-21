@@ -148,6 +148,7 @@ struct cmdq_pkt {
 	void			*bdg_data;
 	bool			reuse;
 #endif
+	bool			task_alive;
 };
 
 struct cmdq_thread {

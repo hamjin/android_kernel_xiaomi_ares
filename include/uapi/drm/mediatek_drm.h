@@ -447,6 +447,7 @@ struct DISP_PQ_PARAM {
 
 /* PQ */
 #define DRM_MTK_PQ_PERSIST_PROPERTY	0x1F
+#define DRM_MTK_BYPASS_AAL   0x1E
 #define DRM_MTK_SET_CCORR			0x20
 #define DRM_MTK_CCORR_EVENTCTL   0x21
 #define DRM_MTK_CCORR_GET_IRQ    0x22
@@ -476,9 +477,6 @@ struct DISP_PQ_PARAM {
 #define DRM_MTK_HDMI_AUDIO_ENABLE	0x3B
 #define DRM_MTK_HDMI_AUDIO_CONFIG	0x3C
 #define DRM_MTK_HDMI_GET_CAPABILITY	0x3D
-
-#define DRM_MTK_GET_PQ_CAPS 0x54
-#define DRM_MTK_SET_PQ_CAPS 0x55
 
 #define DRM_MTK_DEBUG_LOG			0x3E
 
@@ -706,16 +704,6 @@ struct DRM_DISP_WRITE_REG {
 	unsigned int mask;
 };
 
-struct drm_mtk_ccorr_caps {
-	unsigned int ccorr_bit;
-	unsigned int ccorr_number;
-	unsigned int ccorr_linear;//1st byte:high 4 bit:CCORR1,low 4 bit:CCORR0
-};
-
-struct mtk_drm_pq_caps_info {
-	struct drm_mtk_ccorr_caps ccorr_caps;
-};
-
 #define DRM_IOCTL_MTK_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_MTK_GEM_CREATE, struct drm_mtk_gem_create)
 
@@ -766,6 +754,9 @@ struct mtk_drm_pq_caps_info {
 
 #define DRM_IOCTL_MTK_PQ_PERSIST_PROPERTY    DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_MTK_PQ_PERSIST_PROPERTY, unsigned int [32])
+		
+#define DRM_IOCTL_MTK_BYPASS_AAL    DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_MTK_BYPASS_AAL, unsigned int)
 
 #define DRM_IOCTL_MTK_SET_CCORR     DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_MTK_SET_CCORR, struct DRM_DISP_CCORR_COEF_T)
@@ -821,11 +812,6 @@ struct mtk_drm_pq_caps_info {
 
 #define DRM_IOCTL_MTK_DEBUG_LOG     DRM_IOWR(DRM_COMMAND_BASE + \
 			DRM_MTK_DEBUG_LOG, int)
-
-#define DRM_IOCTL_MTK_GET_PQ_CAPS DRM_IOWR(DRM_COMMAND_BASE + \
-		DRM_MTK_GET_PQ_CAPS, struct mtk_drm_pq_caps_info)
-#define DRM_IOCTL_MTK_SET_PQ_CAPS    DRM_IOWR(DRM_COMMAND_BASE + \
-		DRM_MTK_SET_PQ_CAPS, struct mtk_drm_pq_caps_info)
 
 
 /* AAL IOCTL */
