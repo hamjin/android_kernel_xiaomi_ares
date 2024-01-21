@@ -2013,7 +2013,7 @@ static int vb2ops_vdec_buf_prepare(struct vb2_buffer *vb)
 				&ctx->dev->plat_dev->dev);
 			sgt = dma_buf_map_attachment(buf_att, DMA_TO_DEVICE);
 			if (IS_ERR_OR_NULL(sgt)) {
-				mtk_v4l2_err("dma_buf_map_attachment fail %p.\n", sgt);
+				mtk_v4l2_err("dma_buf_map_attachment fail %d.\n", sgt);
 				dma_buf_detach(mtkbuf->frame_buffer.dma_general_buf,
 					buf_att);
 				return -EINVAL;
@@ -2045,7 +2045,7 @@ static int vb2ops_vdec_buf_prepare(struct vb2_buffer *vb)
 
 			sgt = dma_buf_map_attachment(buf_att, DMA_TO_DEVICE);
 			if (IS_ERR_OR_NULL(sgt)) {
-				mtk_v4l2_err("dma_buf_map_attachment fail %p.\n", sgt);
+				mtk_v4l2_err("dma_buf_map_attachment fail %d.\n", sgt);
 				dma_buf_detach(vb->planes[0].dbuf, buf_att);
 				return -EINVAL;
 			}
@@ -2076,7 +2076,7 @@ static int vb2ops_vdec_buf_prepare(struct vb2_buffer *vb)
 				sgt = dma_buf_map_attachment(buf_att,
 					DMA_TO_DEVICE);
 				if (IS_ERR_OR_NULL(sgt)) {
-					mtk_v4l2_err("dma_buf_map_attachment fail %p.\n", sgt);
+					mtk_v4l2_err("dma_buf_map_attachment fail %d.\n", sgt);
 					dma_buf_detach(vb->planes[plane].dbuf, buf_att);
 					return -EINVAL;
 				}
@@ -2237,7 +2237,7 @@ static void vb2ops_vdec_buf_queue(struct vb2_buffer *vb)
 
 		src_buf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 		if (!src_buf) {
-			mtk_v4l2_err("[%d]Error!!src_buf is NULL!", ctx->id);
+			mtk_v4l2_err("[%d]Error!!src_buf is NULL!");
 			return;
 		}
 		v4l2_m2m_buf_done(to_vb2_v4l2_buffer(src_buf),
@@ -2398,7 +2398,7 @@ static void vb2ops_vdec_buf_finish(struct vb2_buffer *vb)
 				&ctx->dev->plat_dev->dev);
 			sgt = dma_buf_map_attachment(buf_att, DMA_FROM_DEVICE);
 			if (IS_ERR_OR_NULL(sgt)) {
-				mtk_v4l2_err("dma_buf_map_attachment fail %p.\n", sgt);
+				mtk_v4l2_err("dma_buf_map_attachment fail %d.\n", sgt);
 				dma_buf_detach(vb->planes[plane].dbuf, buf_att);
 				return;
 			}
@@ -2770,10 +2770,6 @@ static int mtk_vdec_s_ctrl(struct v4l2_ctrl *ctrl)
 		ctx->dec_params.operating_rate = ctrl->val;
 		ctx->dec_param_change |= MTK_DEC_PARAM_OPERATING_RATE;
 		break;
-	case V4L2_CID_MPEG_MTK_REAL_TIME_PRIORITY:
-		ctx->dec_params.priority = ctrl->val;
-		pr_info("%s %d priority %d", __func__, __LINE__, ctx->dec_params.priority);
-		break;
 	case V4L2_CID_MPEG_MTK_QUEUED_FRAMEBUF_COUNT:
 		ctx->dec_params.queued_frame_buf_count = ctrl->val;
 		break;
@@ -2922,11 +2918,6 @@ int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 				&mtk_vcodec_dec_ctrl_ops,
 				V4L2_CID_MPEG_MTK_OPERATING_RATE,
 				0, 4096, 1, 0);
-
-	ctrl = v4l2_ctrl_new_std(&ctx->ctrl_hdl,
-				&mtk_vcodec_dec_ctrl_ops,
-				V4L2_CID_MPEG_MTK_REAL_TIME_PRIORITY,
-				-128, 1, 1, -128);
 
 	ctrl = v4l2_ctrl_new_std(&ctx->ctrl_hdl,
 				&mtk_vcodec_dec_ctrl_ops,
