@@ -4861,6 +4861,7 @@ static int binder_wait_for_work(struct binder_thread *thread,
 		prepare_to_wait(&thread->wait, &wait, TASK_INTERRUPTIBLE);
 		if (binder_has_work_ilocked(thread, do_proc_work))
 			break;
+
 		if (do_proc_work)
 			list_add(&thread->waiting_thread_node,
 				 &proc->waiting_threads);
@@ -7040,6 +7041,7 @@ err_alloc_device_names_failed:
 }
 
 device_initcall(binder_init);
+
 
 #define CREATE_TRACE_POINTS
 #include "binder_trace.h"
