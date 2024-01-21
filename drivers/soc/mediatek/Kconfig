@@ -76,3 +76,8 @@ config MTK_SOCINFO
 	  Say yes here to support the MediaTek SoCInfo driver, providing
 	  information about the SoC to user space.
 
+config XIAOMI_HWID
+	bool "Xiaomi HWID interface"
+	default y
+	help
+	  Say yes to add support for Xiaomi HWID function interfaces.
