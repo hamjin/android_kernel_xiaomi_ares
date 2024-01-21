@@ -103,7 +103,6 @@
 #elif defined(CONFIG_MACH_MT6873) || defined(CONFIG_MACH_MT6853) \
 	|| defined(CONFIG_MACH_MT6877) || defined(CONFIG_MACH_MT6781)
 #define DISP_REG_DSC_SHADOW			0x0200
-#define DISP_DSC_VERSION_MINOR (0x000001e0)
 #define DSC_FORCE_COMMIT	BIT(0)
 #define DSC_BYPASS_SHADOW	BIT(1)
 #define DSC_READ_WORKING	BIT(2)
@@ -330,7 +329,7 @@ static void mtk_dsc_config(struct mtk_ddp_comp *comp,
 	unsigned int init_delay_height;
 	struct mtk_panel_dsc_params *dsc_params;
 
-	DDPFUNC();
+	DDPDBG("[%s line:%d]\n", __func__, __LINE__);
 	if (!comp->mtk_crtc || (!comp->mtk_crtc->panel_ext
 				&& !comp->mtk_crtc->is_dual_pipe))
 		return;
@@ -341,7 +340,7 @@ static void mtk_dsc_config(struct mtk_ddp_comp *comp,
 	mtk_dsc_default_setting();
 #endif
 	if (dsc_params->enable == 1) {
-		DDPMSG("%s, w:%d, h:%d, slice_mode:%d,slice(%d,%d),bpp:%d\n",
+		DDPDBG("%s, w:%d, h:%d, slice_mode:%d,slice(%d,%d),bpp:%d\n",
 			mtk_dump_comp_str(comp), cfg->w, cfg->h,
 			dsc_params->slice_mode,	dsc_params->slice_width,
 			dsc_params->slice_height, dsc_params->bit_per_pixel);
@@ -411,7 +410,7 @@ static void mtk_dsc_config(struct mtk_ddp_comp *comp,
 		mtk_ddp_write_mask(comp, reg_val,
 					DISP_REG_DSC_MODE, 0xFFFF, handle);
 
-		DDPMSG("%s, init delay:%d\n",
+		DDPDBG("%s, init delay:%d\n",
 			mtk_dump_comp_str(comp), reg_val);
 
 		mtk_ddp_write_relaxed(comp,

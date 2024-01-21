@@ -30,7 +30,7 @@
 #include "mtk_drm_ddp_addon.h"
 #include <linux/pm_wakeup.h>
 #include "mtk_disp_pmqos.h"
-
+#include "mi_disp/mi_disp_esd_check.h"
 
 #define MAX_CRTC 3
 #define OVL_LAYER_NR 12L
@@ -371,6 +371,9 @@ enum MTK_CRTC_PROP {
 	CRTC_PROP_USER_SCEN,
 	CRTC_PROP_HDR_ENABLE,
 	CRTC_PROP_OVL_DSI_SEQ,
+#if defined (CONFIG_DRM_PANEL_K16_38_0C_0A_DSC_VDO) || defined (CONFIG_DRM_PANEL_K16_38_0E_0B_DSC_VDO)
+	CRTC_PROP_MI_FOD_SYNC_INFO,
+#endif
 	CRTC_PROP_MAX,
 };
 
@@ -672,6 +675,9 @@ struct mtk_drm_crtc {
 	wait_queue_head_t crtc_status_wq;
 	struct mtk_panel_ext *panel_ext;
 	struct mtk_drm_esd_ctx *esd_ctx;
+#ifdef CONFIG_MI_ESD_CHECK
+	struct mi_esd_ctx *mi_esd_ctx;
+#endif
 #ifdef CONFIG_MTK_ROUND_CORNER_SUPPORT
 	struct mtk_drm_gem_obj *round_corner_gem;
 	struct mtk_drm_gem_obj *round_corner_gem_l;
@@ -919,8 +925,4 @@ void mtk_crtc_stop_for_pm(struct mtk_drm_crtc *mtk_crtc, bool need_wait);
 bool mtk_crtc_frame_buffer_existed(void);
 int m4u_sec_init(void);
 
-int mtk_drm_ioctl_get_pq_caps(struct drm_device *dev, void *data,
-	struct drm_file *file_priv);
-int mtk_drm_ioctl_set_pq_caps(struct drm_device *dev, void *data,
-	struct drm_file *file_priv);
 #endif /* MTK_DRM_CRTC_H */

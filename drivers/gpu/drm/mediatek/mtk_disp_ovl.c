@@ -1342,7 +1342,7 @@ static void _ovl_common_config(struct mtk_ddp_comp *comp, unsigned int idx,
 			size = buf_size;
 			regs_addr = comp->regs_pa +
 				DISP_REG_OVL_EL_ADDR(id);
-			if (state->pending.is_sec && pending->addr) {
+			if (state->pending.is_sec && pending->addr && (dst_h >= 1) ) {
 				meta_type = CMDQ_IWC_H_2_MVA;
 				cmdq_sec_pkt_write_reg(handle, regs_addr,
 					pending->addr, meta_type,
@@ -1437,7 +1437,7 @@ static void _ovl_common_config(struct mtk_ddp_comp *comp, unsigned int idx,
 			size = buf_size;
 			regs_addr = comp->regs_pa +
 				DISP_REG_OVL_ADDR(ovl, lye_idx);
-			if (state->pending.is_sec && pending->addr) {
+			if (state->pending.is_sec && pending->addr && (dst_h >= 1)) {
 				meta_type = CMDQ_IWC_H_2_MVA;
 				cmdq_sec_pkt_write_reg(handle, regs_addr,
 					pending->addr, meta_type,
@@ -1573,8 +1573,8 @@ static void mtk_ovl_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 		ext_lye_idx = state->comp_state.ext_lye_id;
 	} else
 		lye_idx = idx;
-	DDPINFO("%s+ idx:%d, enable:%d, fmt:0x%x\n", __func__, idx,
-		pending->enable, pending->format);
+	DDPINFO("%s+ idx:%d lye_idx:%d, enable:%d, fmt:0x%x\n", __func__, idx,
+		lye_idx, pending->enable, pending->format);
 	if (!pending->enable)
 		mtk_ovl_layer_off(comp, lye_idx, ext_lye_idx, handle);
 
@@ -1883,7 +1883,7 @@ static bool compr_l_config_PVRIC_V3_1(struct mtk_ddp_comp *comp,
 
 			regs_addr = comp->regs_pa +
 				DISP_REG_OVL_EL_ADDR(id);
-			if (state->pending.is_sec && pending->addr) {
+			if (state->pending.is_sec && pending->addr && (dst_h >= 1)) {
 				size = buf_size;
 				meta_type = CMDQ_IWC_H_2_MVA;
 				cmdq_sec_pkt_write_reg(handle, regs_addr,
@@ -1980,7 +1980,7 @@ static bool compr_l_config_PVRIC_V3_1(struct mtk_ddp_comp *comp,
 
 			regs_addr = comp->regs_pa +
 				DISP_REG_OVL_ADDR(ovl, lye_idx);
-			if (state->pending.is_sec && pending->addr) {
+			if (state->pending.is_sec && pending->addr && (dst_h >= 1)) {
 				size = buf_size;
 				meta_type = CMDQ_IWC_H_2_MVA;
 				cmdq_sec_pkt_write_reg(handle, regs_addr,

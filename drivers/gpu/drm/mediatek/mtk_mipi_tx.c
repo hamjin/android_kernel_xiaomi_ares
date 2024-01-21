@@ -467,6 +467,11 @@ int mtk_mipi_tx_dphy_lane_config(struct phy *phy,
 		PAD_D0P_T0C, PAD_D1P_T2A, PAD_D2P_T0A,
 		PAD_D3P_T2C, PAD_CKP_T1B, PAD_CKP_T1B};
 
+#ifdef CONFIG_DRM_PANEL_K11T_42_02_0A_DSC_CMD
+	//change MIPITX_VOLTAGE_SEL 0x44441204 to 0x44441344
+	writel(0x44441344, mipi_tx->regs + MIPITX_VOLTAGE_SEL);
+#endif
+
 	if (!mtk_panel->params->lane_swap_en) {
 		mtk_mipi_tx_update_bits(mipi_tx, MIPITX_CK_CKMODE_EN,
 				0x1, 0x1);
@@ -738,7 +743,7 @@ static bool mtk_is_mipi_tx_enable(struct clk_hw *hw)
 	return ((tmp & RG_DSI_PLL_EN) > 0);
 }
 
-inline unsigned int _dsi_get_pcw(unsigned long data_rate,
+static inline unsigned int _dsi_get_pcw(unsigned long data_rate,
 	unsigned int pcw_ratio)
 {
 	unsigned int pcw, tmp, pcw_floor;
@@ -1900,11 +1905,7 @@ void mtk_mipi_tx_pll_rate_switch_gce(struct phy *phy,
 static long mtk_mipi_tx_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 				       unsigned long *prate)
 {
-#ifndef CONFIG_MTK_MT6382_BDG
 	return clamp_val(rate, 50000000, 1250000000);
-#else
-	return clamp_val(rate, 50000000, 2300000000);
-#endif
 }
 
 static int mtk_mipi_tx_pll_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -1915,6 +1916,7 @@ static int mtk_mipi_tx_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	DDPDBG("%s set rate: %lu Hz\n", __func__, rate);
 
 	dev_dbg(mipi_tx->dev, "set rate: %lu Hz\n", rate);
+
 	mipi_tx->data_rate = rate;
 
 	return 0;

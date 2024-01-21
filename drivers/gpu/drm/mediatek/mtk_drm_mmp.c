@@ -246,12 +246,6 @@ void init_crtc_mmp_event(void)
 					mmprofile_register_event(
 					g_CRTC_MMP_Events[i].cwbBmpDump,
 					"cwb_dump");
-		g_CRTC_MMP_Events[i].mode_switch = mmprofile_register_event(
-			crtc_mmp_root, "mode_switch");
-#ifdef CONFIG_MTK_MT6382_BDG
-		g_CRTC_MMP_Events[i].bdg_gce_irq = mmprofile_register_event(
-			crtc_mmp_root, "bdg_gce_irq");
-#endif
 	}
 }
 void drm_mmp_init(void)
@@ -319,7 +313,7 @@ int mtk_drm_mmp_ovl_layer(struct mtk_plane_state *state,
 	struct drm_crtc *crtc = state->crtc;
 	int crtc_idx = drm_crtc_index(crtc);
 	struct mmp_metadata_bitmap_t bitmap;
-	struct mmp_metadata_t meta = {.data1 = 0, .data2 = 0};
+	struct mmp_metadata_t meta;
 	unsigned int fmt = pending->format;
 	int raw = 0;
 	int yuv = 0;
