@@ -165,6 +165,7 @@ static const struct mt6360_chg_platform_data def_platform_data = {
 	.aicc_once = true,
 	.post_aicc = true,
 	.batoc_notify = false,
+	.en_eoc = true,
 	.chg_name = "primary_chg",
 };
 
@@ -357,6 +358,7 @@ static int mt6360_enable_wdt(struct mt6360_pmu_chg_info *mpci, bool en)
 					  en ? 0xff : 0);
 }
 
+/*
 static int mt6360_enable_otg_wdt(struct mt6360_pmu_chg_info *mpci, bool en)
 {
 	struct mt6360_chg_platform_data *pdata = dev_get_platdata(mpci->dev);
@@ -369,6 +371,7 @@ static int mt6360_enable_otg_wdt(struct mt6360_pmu_chg_info *mpci, bool en)
 					  MT6360_MASK_CHG_WDT_EN,
 					  en ? 0xff : 0);
 }
+*/
 
 static inline int mt6360_get_chrdet_ext_stat(struct mt6360_pmu_chg_info *mpci,
 					  bool *pwr_rdy)
@@ -803,6 +806,9 @@ out:
 	ret = mt6360_pmu_reg_update_bits(mpci->mpi,
 					 MT6360_PMU_CHG_CTRL2,
 					 MT6360_MASK_CHG_EN, en ? 0xff : 0);
+	ret = mt6360_pmu_reg_update_bits(mpci->mpi,
+					MT6360_PMU_CHG_CTRL2,
+					MT6360_MASK_BYPASS_MODE, 0x0);
 	if (ret < 0)
 		dev_notice(mpci->dev, "%s: fail, en = %d\n", __func__, en);
 vsys_wkard_fail:
@@ -1430,14 +1436,9 @@ static int mt6360_set_otg_current_limit(struct charger_device *chg_dev,
 static int mt6360_enable_otg(struct charger_device *chg_dev, bool en)
 {
 	struct mt6360_pmu_chg_info *mpci = charger_get_data(chg_dev);
-	int ret = 0;
 
 	dev_dbg(mpci->dev, "%s: en = %d\n", __func__, en);
-	ret = mt6360_enable_otg_wdt(mpci, en ? true : false);
-	if (ret < 0) {
-		dev_err(mpci->dev, "%s: set wdt fail, en = %d\n", __func__, en);
-		return ret;
-	}
+
 	return mt6360_pmu_reg_update_bits(mpci->mpi, MT6360_PMU_CHG_CTRL1,
 					  MT6360_MASK_OPA_MODE, en ? 0xff : 0);
 }
@@ -2526,14 +2527,16 @@ static const struct mt6360_pdata_prop mt6360_pdata_props[] = {
 	MT6360_PDATA_VALPROP(ircmp_vclamp, struct mt6360_chg_platform_data,
 			     MT6360_PMU_CHG_CTRL18, 0, 0x07,
 			     mt6360_trans_ircmp_vclamp_sel, 0),
-#if 0
 	MT6360_PDATA_VALPROP(en_te, struct mt6360_chg_platform_data,
 			     MT6360_PMU_CHG_CTRL2, 4, 0x10, NULL, 0),
+#if 0
 	MT6360_PDATA_VALPROP(en_wdt, struct mt6360_chg_platform_data,
 			     MT6360_PMU_CHG_CTRL13, 7, 0x80, NULL, 0),
 #endif
 	MT6360_PDATA_VALPROP(aicc_once, struct mt6360_chg_platform_data,
 			     MT6360_PMU_CHG_CTRL14, 0, 0x04, NULL, 0),
+	MT6360_PDATA_VALPROP(en_eoc, struct mt6360_chg_platform_data,
+			     MT6360_PMU_CHG_CTRL9, 3, 0x08, NULL, 0),
 };
 
 static int mt6360_chg_apply_pdata(struct mt6360_pmu_chg_info *mpci,
@@ -2565,6 +2568,7 @@ static const struct mt6360_val_prop mt6360_val_props[] = {
 	MT6360_DT_VALPROP(aicc_once, struct mt6360_chg_platform_data),
 	MT6360_DT_VALPROP(post_aicc, struct mt6360_chg_platform_data),
 	MT6360_DT_VALPROP(batoc_notify, struct mt6360_chg_platform_data),
+	MT6360_DT_VALPROP(en_eoc, struct mt6360_chg_platform_data),
 };
 
 static int mt6360_chg_parse_dt_data(struct device *dev,
@@ -2682,6 +2686,16 @@ static int mt6360_chg_init_setting(struct mt6360_pmu_chg_info *mpci)
 		if (ret < 0)
 			dev_err(mpci->dev,
 				"%s: clear BATSYSUV fail\n", __func__);
+	}
+
+	/* K16U add: close mt6360 QONB pwrkey reset*/
+	if (strnstr(saved_command_line, "pissarropro", strlen(saved_command_line)) ||
+		strnstr(saved_command_line, "pissarroinpro", strlen(saved_command_line))) {
+		ret = mt6360_pmu_reg_set_bits(mpci->mpi, MT6360_PMU_CHG_PUMP, 0x80);
+		if (ret < 0)
+			dev_err(mpci->dev,  "%s: close QON Failed!\n", __func__);
+		else
+			dev_err(mpci->dev,  "%s: close QON OK!\n", __func__);
 	}
 
 	/* USBID ID_TD = 32T */

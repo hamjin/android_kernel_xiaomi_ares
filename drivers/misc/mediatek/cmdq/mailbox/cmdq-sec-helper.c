@@ -218,7 +218,7 @@ s32 cmdq_sec_pkt_write_reg(struct cmdq_pkt *pkt, u32 addr, u64 base,
 		CMDQ_CODE_WRITE_S);
 	if (ret)
 		return ret;
-
+	
 	/* check boundary size and append at first before append metadata */
 	if (unlikely(!pkt->avail_buf_size)) {
 		if (cmdq_pkt_add_cmd_buffer(pkt) < 0)

@@ -39,6 +39,13 @@ enum {
 	MAX_ACTION,
 };
 
+enum {
+	CUST_CMD_CALI = 0,
+	/* Add custom cmd action here! */
+	CUST_CMD_CONFIG = 1,
+	MAX_CUST_CMD,
+};
+
 struct hf_manager_batch {
 	int64_t delay;
 	int64_t latency;
@@ -73,6 +80,11 @@ struct sensor_info {
 } __packed __aligned(4);
 
 struct custom_cmd {
+		union {
+		//int32_t data[24];
+		float f_data[24];
+	};
+	uint32_t action;
 	uint8_t command;
 	uint8_t tx_len;
 	uint8_t rx_len;
@@ -89,7 +101,7 @@ struct ioctl_packet {
 	uint8_t padding[3];
 	union {
 		bool status;
-		int8_t byte[64];
+		int8_t byte[164];
 	};
 } __packed __aligned(4);
 

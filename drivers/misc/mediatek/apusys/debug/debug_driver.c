@@ -318,7 +318,6 @@ static int debug_probe(struct platform_device *pdev)
 		DBG_LOG_ERR("failed to create debug dump attr node(devinfo).\n");
 		goto out;
 	}
-
 	return 0;
 
 out:

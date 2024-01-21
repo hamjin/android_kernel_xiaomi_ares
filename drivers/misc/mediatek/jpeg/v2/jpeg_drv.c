@@ -406,11 +406,11 @@ static int jpeg_drv_hybrid_dec_suspend_notifier(
 		for (i = 0 ; i < HW_CORE_NUMBER; i++) {
 			JPEG_LOG(0, "jpeg dec sn wait core %d\n", i);
 			while (dec_hwlocked[i]) {
-				JPEG_LOG(1, "jpeg dec sn core %d locked. wait...\n", i);
+				pr_info("jpeg dec sn core %d locked. wait...\n", i);
 				usleep_range(10000, 20000);
 				wait_cnt++;
 				if (wait_cnt > 5) {
-					JPEG_LOG(0, "jpeg dec sn wait core %d fail\n", i);
+					pr_info("jpeg dec sn wait core %d fail\n", i);
 					return NOTIFY_DONE;
 				}
 			}

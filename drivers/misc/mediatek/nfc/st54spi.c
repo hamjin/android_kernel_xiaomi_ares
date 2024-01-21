@@ -32,14 +32,13 @@
 #include <linux/uaccess.h>
 
 // Do we need to control the clock of SPI master ?
-// #define WITH_SPI_CLK_MNGT 1
+#define WITH_SPI_CLK_MNGT 1
 
 // Is the SPI_NSS signal highZ from platform side when SPI not used (i.e. used as open-drain)
 #define WITH_SPI_NSS_HIGHZ 1
 // Note:
 // if SPI_NSS is open-drain, the eSE will drive the line high when powered on and low when off.
-// If it is not open-drain, we will keep the eSE powered always
-// when EE_MODE_SET is set to enabled in CLF
+// If it is not open-drain, we will keep the eSE powered always when EE_MODE_SET is set to enabled in CLF
 // This is the only way to avoid SPI_NSS high from host when VCC_SE is low
 // AND avoid SPI_NSS low when VCC_SE is high but SPI not used.
 
@@ -69,6 +68,7 @@ static DECLARE_BITMAP(minors, N_SPI_MINORS);
 
 #define ST54SPI_IOC_RD_POWER _IOR(SPI_IOC_MAGIC, 99, __u32)
 #define ST54SPI_IOC_WR_POWER _IOW(SPI_IOC_MAGIC, 99, __u32)
+//#define ST54SPI_IOC_WR_POWER         _IOW(0xEA, 0x1A, unsigned int)
 
 /* Bit masks for spi_device.mode management.  Note that incorrect
  * settings for some settings can cause *lots* of trouble for other
@@ -129,6 +129,10 @@ static bool debug_enabled = true;
 #define VERBOSE 1
 
 #define DEV (st54spi->spi ? &st54spi->spi->dev : &st54spi->spi_reset->dev)
+
+extern void mt_spi_enable_master_clk(struct spi_device *spidev);
+extern void mt_spi_disable_master_clk(struct spi_device *spidev);
+
 /*-------------------------------------------------------------------------*/
 
 static ssize_t st54spi_sync(
@@ -417,10 +421,9 @@ static void st54spi_power_off(struct st54spi_data *st54spi)
 
 	// Change NSS polarity to have NSS low.
 	ret = pinctrl_select_state(st54spi->pctrl, st54spi->pctrl_mode_idle);
-
 	if (ret < 0) {
-		dev_info(DEV, "%s : change CSB management to High Z failed!\n",
-			__func__);
+		dev_err(DEV,
+				"%s : change CSB management to High Z failed!\n", __func__);
 	}
 
 	st54spi->se_is_poweron = 0;
@@ -459,7 +462,9 @@ static void st54spi_power_off_for_comm(struct st54spi_data *st54spi)
 		// and pull down the line before continue.
 		usleep_range(2000, 4500);
 	}
+
 	st54spi->se_is_poweron_for_comm = 0;
+
 }
 
 static void st54spi_power_on(struct st54spi_data *st54spi)
@@ -479,8 +484,8 @@ static void st54spi_power_on(struct st54spi_data *st54spi)
 	ret = pinctrl_select_state(st54spi->pctrl, st54spi->pctrl_mode_spi);
 
 	if (ret < 0) {
-		dev_info(DEV, "%s : change NSS management to SPI failed!\n",
-			__func__);
+		dev_err(DEV,
+				"%s : change NSS management to SPI failed!\n", __func__);
 	}
 
 	usleep_range(4000, 5000);
@@ -520,8 +525,7 @@ static void st54spi_power_set(struct st54spi_data *st54spi, int val)
 		return;
 
 	if (debug_enabled)
-		dev_info(DEV, "st54spi sehal pwr_req: %d, se_is_poweron = %d, nfcc_needs_poweron = %d\n",
-			val, st54spi->se_is_poweron, st54spi->nfcc_needs_poweron);
+		dev_info(DEV, "st54spi sehal pwr_req: %d, se_is_poweron = %d, nfcc_needs_poweron = %d\n", val, st54spi->se_is_poweron, st54spi->nfcc_needs_poweron);
 
 	if (val) {
 		st54spi->sehal_needs_poweron = 1;
@@ -821,7 +825,7 @@ static int st54spi_open(struct inode *inode, struct file *filp)
 
 	// Authorize only 1 process to open the device.
 	if (st54spi->users > 0) {
-		dev_info(DEV, "%d: already open\n", st54spi->users);
+		dev_err(DEV, "%d: already open\n");
 		mutex_unlock(&device_list_lock);
 		return -EBUSY;
 	}
@@ -869,28 +873,23 @@ err_find_dev:
 
 static int st54spi_release(struct inode *inode, struct file *filp)
 {
-	struct st54spi_data *st54spi;
-
-	mutex_lock(&device_list_lock);
-	st54spi = filp->private_data;
-	filp->private_data = NULL;
-
-	if (debug_enabled)
-		dev_info(DEV, "st54spi: release\n");
-
-	/* last close? */
-	st54spi->users--;
-	if (!st54spi->users) {
-		if (debug_enabled)
-			dev_info(DEV, "st54spi: release - may allow power off\n");
-
-		st54spi_power_off_for_comm(st54spi);
-		if (!st54spi->sehal_needs_poweron)
-			st54spi_power_off(st54spi);
-	}
-	mutex_unlock(&device_list_lock);
-
-	return 0;
+       struct st54spi_data *st54spi;
+       mutex_lock(&device_list_lock);
+       st54spi = filp->private_data;
+       filp->private_data = NULL;
+       if (debug_enabled)
+	dev_info(DEV, "st54spi: release\n");
+       /* last close? */
+       st54spi->users--;
+       if (!st54spi->users) {
+			if (debug_enabled)
+				dev_info(DEV, "st54spi: release - may allow power off\n");
+			st54spi_power_off_for_comm(st54spi);
+			if (!st54spi->sehal_needs_poweron)
+				st54spi_power_off(st54spi);
+       }
+       mutex_unlock(&device_list_lock);
+       return 0;
 }
 
 static const struct file_operations st54spi_fops = {
@@ -1072,8 +1071,8 @@ static void st54spi_st21nfc_cb(int dir, void *data)
 		if (st54spi->se_is_poweron == 0)
 			st54spi_power_on(st54spi);
 		#else
-		dev_dbg(DEV, "%s : Ignored ST54SPI_CB_ESE_USED because WITH_SPI_NSS_HIGHZ\n",
-			__func__);
+		dev_dbg(DEV, "%s : Ignored ST54SPI_CB_ESE_USED because WITH_SPI_NSS_HIGHZ\n", __func__);
+
 		#endif
 		break;
 
@@ -1081,12 +1080,12 @@ static void st54spi_st21nfc_cb(int dir, void *data)
 		#if (WITH_SPI_NSS_HIGHZ != 1)
 		st54spi->nfcc_needs_poweron = 0;
 		if ((st54spi->se_is_poweron == 1) &&
-			(st54spi->sehal_needs_poweron == 0))
+		(st54spi->sehal_needs_poweron == 0))
 			// we don t need power anymore
 			st54spi_power_off(st54spi);
 		#else
-		dev_dbg(DEV, "%s : Ignored ST54SPI_CB_ESE_NOT_USED because WITH_SPI_NSS_HIGHZ\n",
-			__func__);
+		dev_dbg(DEV, "%s : Ignored ST54SPI_CB_ESE_NOT_USED because WITH_SPI_NSS_HIGHZ\n", __func__);
+
 		#endif
 		break;
 	}

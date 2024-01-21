@@ -2598,7 +2598,11 @@ static int mt6360_i2c_probe(struct i2c_client *client,
 
 #if defined(CONFIG_WATER_DETECTION) || defined(CONFIG_CABLE_TYPE_DETECTION)
 #if CONFIG_MTK_GAUGE_VERSION == 30
+#ifdef CONFIG_PISSARRO_CHARGER
+	chip->chgdev = get_charger_by_name("pmic");
+#else
 	chip->chgdev = get_charger_by_name("primary_chg");
+#endif
 	if (!chip->chgdev) {
 		dev_err(chip->dev, "%s get charger device fail\n", __func__);
 		ret = -EPROBE_DEFER;

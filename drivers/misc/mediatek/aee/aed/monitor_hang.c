@@ -108,6 +108,17 @@ DECLARE_WAIT_QUEUE_HEAD(dump_bt_start_wait);
 DECLARE_WAIT_QUEUE_HEAD(dump_bt_done_wait);
 DEFINE_RAW_SPINLOCK(white_list_lock);
 
+#ifdef CONFIG_MTK_ENG_BUILD
+static int reboot_cnt=5;
+#elif defined (CONFIG_PAGE_OWNER)
+/* For userdebug build */
+static int reboot_cnt=5;
+#else
+static int reboot_cnt=1;
+#endif
+
+module_param(reboot_cnt, int, 0644);
+
 /* bleow code is added by QHQ  for hang detect */
 /* For the condition, where kernel is still alive,
  * but system server is not scheduled.
@@ -378,12 +389,8 @@ static long monitor_hang_ioctl(struct file *file, unsigned int cmd,
 	if (cmd == AEEIOCTL_SET_HANG_REBOOT &&
 		(!strncmp(current->comm, "init", 4))) {
 		reboot_flag = true;
-#ifdef CONFIG_MTK_ENG_BUILD
-		hang_detect_counter = 3;
-#else
-		hang_detect_counter = 1;
-#endif
-		hd_timeout = 3;
+		hang_detect_counter = reboot_cnt;
+		hd_timeout = reboot_cnt;
 		hd_detect_enabled = 1;
 		pr_info("hang_detect: %s set reboot command.\n", current->comm);
 		return ret;

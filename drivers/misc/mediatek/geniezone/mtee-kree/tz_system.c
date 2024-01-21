@@ -313,7 +313,7 @@ static int _tipc_k_connect_retry(struct tipc_k_handle *h, const char *port_name)
 		if (unlikely(IS_RESTARTSYS_ERROR(rc))) {
 			struct tipc_dn_chan *dn = h->dn;
 
-			if (dn && _is_tipc_channel_connected(dn)) {
+			if (_is_tipc_channel_connected(dn)) {
 				KREE_DEBUG(
 					"%s: channel is connected already!\n",
 					__func__);
@@ -1233,6 +1233,44 @@ create_session_out:
 	return ret;
 }
 EXPORT_SYMBOL(KREE_CreateSession);
+
+/*fix mtee sync*/
+TZ_RESULT KREE_CreateSessionWithTag(const char *ta_uuid,
+				    KREE_SESSION_HANDLE *pHandle,
+				    const char *tag)
+{
+#if debugFg
+	uint32_t paramTypes;
+	union MTEEC_PARAM param[4];
+	TZ_RESULT ret;
+
+	if (!ta_uuid || !pHandle)
+		return TZ_RESULT_ERROR_BAD_PARAMETERS;
+
+	param[0].mem.buffer = (char *)ta_uuid;
+	param[0].mem.size = strnlen(ta_uuid, MAX_UUID_LEN) + 1;
+	param[1].mem.buffer = (char *)tag;
+	if (tag != NULL && strlen(tag) != 0)
+		param[1].mem.size = strlen(tag) + 1;
+	else
+		param[1].mem.size = 0;
+	paramTypes = TZ_ParamTypes3(TZPT_MEM_INPUT,
+					TZPT_MEM_INPUT,
+					TZPT_VALUE_OUTPUT);
+
+	ret = KREE_TeeServiceCall(
+			(KREE_SESSION_HANDLE) MTEE_SESSION_HANDLE_SYSTEM,
+			TZCMD_SYS_SESSION_CREATE_WITH_TAG, paramTypes, param);
+
+	if (ret == TZ_RESULT_SUCCESS)
+		*pHandle = (KREE_SESSION_HANDLE)param[2].value.a;
+
+	return ret;
+#endif
+	KREE_DEBUG(" ===> %s: not support!\n", __func__);
+	return -1;
+}
+EXPORT_SYMBOL(KREE_CreateSessionWithTag);
 
 TZ_RESULT KREE_CloseSession(KREE_SESSION_HANDLE handle)
 {

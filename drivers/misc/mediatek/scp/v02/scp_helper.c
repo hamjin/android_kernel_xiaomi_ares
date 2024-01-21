@@ -218,20 +218,19 @@ void memcpy_from_scp(void *trg, const void __iomem *src, int size)
 /*
  * acquire a hardware semaphore
  * @param flag: semaphore id
- * return  0 :get sema success
- *         1 :get sema timeout
- *        -1 :get sema fail, driver not ready
+ * return  1 :get sema success
+ *        -1 :get sema timeout
  */
 int get_scp_semaphore(int flag)
 {
 	int read_back;
-	unsigned int cnt;
-	int ret = SEMAPHORE_FAIL;
+	int count = 0;
+	int ret = -1;
 	unsigned long spin_flags;
 
-	/* return -1 to prevent from access when driver not ready */
+	/* return 1 to prevent from access when driver not ready */
 	if (!driver_init_done)
-		return SEMAPHORE_NOT_INIT;
+		return -1;
 
 	/* spinlock context safe*/
 	spin_lock_irqsave(&scp_awake_spinlock, spin_flags);
@@ -241,23 +240,23 @@ int get_scp_semaphore(int flag)
 	read_back = (readl(SCP_SEMAPHORE) >> flag) & 0x1;
 
 	if (read_back == 0) {
-		cnt = SEMAPHORE_TIMEOUT;
 		writel((1 << flag), SCP_SEMAPHORE);
 
-		while (cnt-- > 0) {
+		while (count != SEMAPHORE_TIMEOUT) {
 			/* repeat test if we get semaphore */
 			read_back = (readl(SCP_SEMAPHORE) >> flag) & 0x1;
 			if (read_back == 1) {
-				ret = SEMAPHORE_SUCCESS;
+				ret = 1;
 				break;
 			}
 			writel((1 << flag), SCP_SEMAPHORE);
+			count++;
 		}
 
-		if (ret == SEMAPHORE_FAIL)
-			pr_notice("[SCP] get scp sema. %d TIMEOUT...!\n", flag);
+		if (ret < 0)
+			pr_debug("[SCP] get scp sema. %d TIMEOUT...!\n", flag);
 	} else {
-		pr_notice("[SCP] already hold scp sema. %d\n", flag);
+		pr_err("[SCP] already hold scp sema. %d\n", flag);
 	}
 
 	spin_unlock_irqrestore(&scp_awake_spinlock, spin_flags);
@@ -269,19 +268,18 @@ EXPORT_SYMBOL_GPL(get_scp_semaphore);
 /*
  * release a hardware semaphore
  * @param flag: semaphore id
- * return  0 :release sema success
- *         1 :release sema fail
- *        -1 :release sema fail, driver not ready
+ * return  1 :release sema success
+ *        -1 :release sema fail
  */
 int release_scp_semaphore(int flag)
 {
 	int read_back;
-	int ret = SEMAPHORE_FAIL;
+	int ret = -1;
 	unsigned long spin_flags;
 
-	/* return -1 to prevent from access when driver not ready */
+	/* return 1 to prevent from access when driver not ready */
 	if (!driver_init_done)
-		return SEMAPHORE_NOT_INIT;
+		return -1;
 
 	/* spinlock context safe*/
 	spin_lock_irqsave(&scp_awake_spinlock, spin_flags);
@@ -294,11 +292,11 @@ int release_scp_semaphore(int flag)
 		writel((1 << flag), SCP_SEMAPHORE);
 		read_back = (readl(SCP_SEMAPHORE) >> flag) & 0x1;
 		if (read_back == 0)
-			ret = SEMAPHORE_SUCCESS;
+			ret = 1;
 		else
-			pr_notice("[SCP] release scp sema. %d failed\n", flag);
+			pr_debug("[SCP] release scp sema. %d failed\n", flag);
 	} else {
-		pr_notice("[SCP] try to release sema. %d not own by me\n", flag);
+		pr_err("[SCP] try to release sema. %d not own by me\n", flag);
 	}
 
 	spin_unlock_irqrestore(&scp_awake_spinlock, spin_flags);
@@ -307,94 +305,6 @@ int release_scp_semaphore(int flag)
 }
 EXPORT_SYMBOL_GPL(release_scp_semaphore);
 
-/*
- * acquire a hardware semaphore
- * @param flag: semaphore id
- * return 0: get sema success
- *        1: get sema timeout
- *       -1: get sema fail, driver not ready
- */
-int scp_get_semaphore_3way(int flag)
-{
-	int ret = SEMAPHORE_FAIL;
-	unsigned int cnt;
-	unsigned long spin_flags;
-	unsigned int read_back;
-
-	/* return -1 to prevent from access when driver not ready */
-	if (!driver_init_done)
-		return SEMAPHORE_NOT_INIT;
-
-	/* spinlock context safe*/
-	spin_lock_irqsave(&scp_awake_spinlock, spin_flags);
-
-	flag = flag * 4 + 2;
-
-	read_back = (readl(SCP_3WAY_SEMAPHORE) >> flag) & 0x1;
-	if (read_back == 0) {
-		cnt = SEMAPHORE_3WAY_TIMEOUT;
-
-		while (cnt-- > 0) {
-			writel((1 << flag), SCP_3WAY_SEMAPHORE);
-
-			read_back = (readl(SCP_3WAY_SEMAPHORE) >> flag) & 0x1;
-			if (read_back == 1) {
-				ret = SEMAPHORE_SUCCESS;
-				break;
-			}
-
-		}
-		if (ret == SEMAPHORE_FAIL)
-			pr_notice("[SCP] get scp sema. %d TIMEOUT...!\n", flag);
-	} else {
-		pr_notice("[SCP] already hold scp sema. %d\n", flag);
-	}
-
-	spin_unlock_irqrestore(&scp_awake_spinlock, spin_flags);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(scp_get_semaphore_3way);
-
-/*
- * release a hardware semaphore
- * @param flag: semaphore id
- * return 0: release sema success
- *        1: release sema fail, sem busy
- *       -1: release sema fail, driver not ready
- */
-int scp_release_semaphore_3way(int flag)
-{
-	int ret = SEMAPHORE_FAIL;
-	unsigned long spin_flags;
-	unsigned int read_back;
-
-	/* return -1 to prevent from access when driver not ready */
-	if (!driver_init_done)
-		return SEMAPHORE_NOT_INIT;
-
-	/* spinlock context safe*/
-	spin_lock_irqsave(&scp_awake_spinlock, spin_flags);
-
-	flag = flag * 4 + 2;
-
-	read_back = (readl(SCP_3WAY_SEMAPHORE) >> flag) & 0x1;
-	if (read_back == 1) {
-		writel((1 << flag), SCP_3WAY_SEMAPHORE);
-		read_back = (readl(SCP_3WAY_SEMAPHORE) >> flag) & 0x1;
-		if (read_back == 0)
-			ret = SEMAPHORE_SUCCESS;
-		else
-			pr_notice("[SCP] release scp sema. %d failed\n", flag);
-	} else {
-		pr_notice("[SCP] try to release sema. %d not own by me\n", flag);
-	}
-
-	spin_unlock_irqrestore(&scp_awake_spinlock, spin_flags);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(scp_release_semaphore_3way);
 
 static BLOCKING_NOTIFIER_HEAD(scp_A_notifier_list);
 /*

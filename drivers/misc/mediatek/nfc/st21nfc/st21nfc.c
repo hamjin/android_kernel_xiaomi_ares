@@ -89,6 +89,7 @@ static unsigned int I2CDMAReadBuf_pa;    /* = NULL; */
 #endif                                   /* KRNMTKLEGACY_I2C */
 
 static bool enable_debug_log;
+//unsigned int irq_count_for_iotcl;
 
 /*The enum is used to index a pw_states array, the values matter here*/
 enum st21nfc_power_state {
@@ -199,8 +200,8 @@ static int st21nfc_clock_select(struct st21nfc_device *st21nfc_dev)
 /*
  * Routine to disable clocks
  */
-static int st21nfc_clock_deselect(struct st21nfc_device *st21nfc_dev)
-{
+static int st21nfc_clock_deselect(struct st21nfc_device *st21nfc_dev) {
+
 #ifndef NO_MTK_CLK_MANAGEMENT
 	clk_buf_ctrl(CLK_BUF_NFC, false);
 #endif
@@ -234,6 +235,7 @@ static void st21nfc_enable_irq(struct st21nfc_device *st21nfc_dev)
 static irqreturn_t st21nfc_dev_irq_handler(int irq, void *dev_id)
 {
 	struct st21nfc_device *st21nfc_dev = dev_id;
+        //pr_info("%s:%d we going to st21nfc_dev_irq_handler", __FILE__, __LINE__);
 
 	if (device_may_wakeup(&st21nfc_dev->client->dev))
 		pm_wakeup_event(&st21nfc_dev->client->dev, WAKEUP_SRC_TIMEOUT);
@@ -270,6 +272,7 @@ static int st21nfc_loc_set_polaritymode(
 		break;
 	}
 	if (st21nfc_dev->irq_is_attached) {
+		disable_irq_wake(client->irq);
 		devm_free_irq(dev, client->irq, st21nfc_dev);
 		st21nfc_dev->irq_is_attached = false;
 	}
@@ -286,13 +289,20 @@ static int st21nfc_loc_set_polaritymode(
 	st21nfc_dev->irq_enabled = true;
 
 	ret = devm_request_irq(dev, client->irq, st21nfc_dev_irq_handler,
-						   st21nfc_dev->polarity_mode | IRQF_NO_SUSPEND,
+						   st21nfc_dev->polarity_mode,
 						   client->name, st21nfc_dev);
 
 	if (ret) {
 		pr_err("%s : devm_request_irq failed\n", __func__);
 		return -ENODEV;
 	}
+
+
+	ret = enable_irq_wake(client->irq);
+	if (ret) {
+		pr_err("%s : enable_irq_wake failed\n", __func__);
+	}
+
 	st21nfc_dev->irq_is_attached = true;
 	st21nfc_disable_irq(st21nfc_dev);
 
@@ -614,6 +624,13 @@ static int st21nfc_dev_open(struct inode *inode, struct file *filp)
 	} else {
 		st21nfc_dev->device_open = true;
 	}
+
+	/*if (irq_count_for_iotcl == 0 && device_may_wakeup(&st21nfc_dev->client->dev) && st21nfc_dev->irq_enabled) {
+		if (!enable_irq_wake(st21nfc_dev->client->irq))
+			st21nfc_dev->irq_wake_up = true;
+	}
+	irq_count_for_iotcl = irq_count_for_iotcl +1;
+	pr_err("%s : open irq_count_for_iotcl is  %d\n", __func__, irq_count_for_iotcl);*/
 	return ret;
 }
 
@@ -623,6 +640,13 @@ static int st21nfc_release(struct inode *inode, struct file *file)
 		container_of(file->private_data,
 			struct st21nfc_device, st21nfc_device);
 
+	/*if (irq_count_for_iotcl == 1 && device_may_wakeup(&st21nfc_dev->client->dev) && st21nfc_dev->irq_wake_up) {
+		if (!disable_irq_wake(st21nfc_dev->client->irq))
+			st21nfc_dev->irq_wake_up = false;
+	}
+	if (irq_count_for_iotcl > 0)
+		irq_count_for_iotcl = irq_count_for_iotcl -1;
+        pr_err("%s : release irq_count_for_iotcl is  %d\n", __func__, irq_count_for_iotcl);*/
 	st21nfc_dev->device_open = false;
 	if (enable_debug_log)
 		pr_debug("%s : device_open  = false\n", __func__);
@@ -694,9 +718,9 @@ static long st21nfc_dev_ioctl(struct file *filp,
 	case ST21NFC_LEGACY_PULSE_RESET:
 		pr_info("%s Double Pulse Request\n", __func__);
 		if (!IS_ERR_OR_NULL(st21nfc_dev->gpiod_reset)) {
-			if (st21nfc_st54spi_cb != 0)
-				(*st21nfc_st54spi_cb)(ST54SPI_CB_RESET_START,
-					st21nfc_st54spi_data);
+			//if (st21nfc_st54spi_cb != 0)
+			//	(*st21nfc_st54spi_cb)(ST54SPI_CB_RESET_START,
+			//		st21nfc_st54spi_data);
 
 			/* pulse low for 20 millisecs */
 			gpiod_set_value(st21nfc_dev->gpiod_reset, 0);
@@ -708,9 +732,10 @@ static long st21nfc_dev_ioctl(struct file *filp,
 			msleep(20);
 			gpiod_set_value(st21nfc_dev->gpiod_reset, 1);
 			pr_info("%s done Double Pulse Request\n", __func__);
-			if (st21nfc_st54spi_cb != 0)
-				(*st21nfc_st54spi_cb)(ST54SPI_CB_RESET_END,
-					st21nfc_st54spi_data);
+			//if (st21nfc_st54spi_cb != 0)
+			//	(*st21nfc_st54spi_cb)(ST54SPI_CB_RESET_END,
+			//		st21nfc_st54spi_data);
+
 		}
 		st21nfc_dev->r_state_current = ST21NFC_HEADER;
 		break;
@@ -783,13 +808,13 @@ static long st21nfc_dev_ioctl(struct file *filp,
 		break;
 	case ST21NFC_USE_ESE:
 		ret = __get_user(tmp, (u32 __user *)arg);
-		if (ret == 0) {
+		/*if (ret == 0) {
 			if (st21nfc_st54spi_cb != 0)
 				(*st21nfc_st54spi_cb)(
 					tmp ? ST54SPI_CB_ESE_USED :
 						ST54SPI_CB_ESE_NOT_USED,
 							st21nfc_st54spi_data);
-		}
+		}*/
 		if (enable_debug_log)
 			pr_debug("%s use ESE %d : %d\n", __func__, ret, tmp);
 		break;
@@ -960,11 +985,15 @@ static ssize_t power_stats_show(struct device *dev,
 		"\nError transition header --> payload state machine: 0x%llx\n"
 		"Error transition from an Active state when not in Idle state: 0x%llx\n"
 		"Error transition from Idle state to Idle state: 0x%llx\n"
-		"Warning transition from Active Reader/Writer state to Idle state: 0x%llx\n"
-		"Error transition from Active state to Active state: 0x%llx\n"
-		"Error transition from Idle state to Active state with notification: 0x%llx\n"
-		"Error transition from Active Reader/Writer state to Active Reader/Writer state: 0x%llx\n"
-		"Error transition from Idle state to Active Reader/Writer state with notification: 0x%llx\n"
+      "Warning transition from Active Reader/Writer state to Idle state: "
+      "0x%llx\n"
+      "Error transition from Active state to Active state: 0x%llx\n"
+      "Error transition from Idle state to Active state with notification: "
+      "0x%llx\n"
+      "Error transition from Active Reader/Writer state to Active "
+      "Reader/Writer state: 0x%llx\n"
+      "Error transition from Idle state to Active Reader/Writer state with "
+      "notification: 0x%llx\n"
 		"\nTotal uptime: 0x%llx Cumulative modes time: 0x%llx\n",
 		data->c_pw_states[ST21NFC_IDLE].count, idle_duration,
 		data->c_pw_states[ST21NFC_IDLE].last_entry,
@@ -1280,8 +1309,9 @@ static int st21nfc_suspend(struct device *device)
 {
 	struct i2c_client *client = to_i2c_client(device);
 	struct st21nfc_device *st21nfc_dev = i2c_get_clientdata(client);
-
+        pr_err("%s : st21nfc_suspend 1\n", __func__);
 	if (device_may_wakeup(&client->dev) && st21nfc_dev->irq_enabled) {
+                pr_err("%s : st21nfc_suspend\n", __func__);
 		if (!enable_irq_wake(client->irq))
 			st21nfc_dev->irq_wake_up = true;
 	}
@@ -1298,8 +1328,9 @@ static int st21nfc_resume(struct device *device)
 	struct i2c_client *client = to_i2c_client(device);
 	struct st21nfc_device *st21nfc_dev = i2c_get_clientdata(client);
 	int pidle;
-
+        pr_err("%s : st21nfc_resume 1\n", __func__);
 	if (device_may_wakeup(&client->dev) && st21nfc_dev->irq_wake_up) {
+                pr_err("%s : st21nfc_resume\n", __func__);
 		if (!disable_irq_wake(client->irq))
 			st21nfc_dev->irq_wake_up = false;
 	}

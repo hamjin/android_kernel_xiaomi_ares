@@ -140,7 +140,6 @@ endif
 ifeq (,$(filter $(CONFIG_MTK_PLATFORM_NAME), "mt6768" "mt6785"))
 obj-y += spi_slave_drv/
 endif
-obj-$(CONFIG_MTK_MT6382_BDG) += spi_slave_drv/
 obj-$(CONFIG_MTK_FB) += video/
 obj-$(CONFIG_MTK_DYNAMIC_FPS_FRAMEWORK_SUPPORT) += dfrc/
 obj-$(CONFIG_MTK_PMIC_WRAP_HAL) += pmic_wrap/
@@ -188,3 +187,21 @@ obj-y += subpmic/
 obj-$(CONFIG_MTK_GATE_IC) += gate_ic/
 obj-$(CONFIG_MTK_OTP) += otp/
 obj-$(CONFIG_MTK_SDA) += sda/
+obj-$(CONFIG_MTK_ULTRASND_PROXIMITY) += elliptic/
+subdir-ccflags-y += -D_XIAOMI_
+
+ifeq ($(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES),"mediatek/ares")
+subdir-ccflags-y += -D_XIAOMI_ARES_
+endif
+
+ifeq ($(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES),"mediatek/chopin")
+subdir-ccflags-y += -D_XIAOMI_CHOPIN_
+endif
+
+ifeq ($(CONFIG_BUILD_XIAOMI_CAMERA_IMAGE_NAMES),"mediatek/agate")
+subdir-ccflags-y += -D_XIAOMI_AGATE_
+endif
+
+ifeq ($(CONFIG_BUILD_XIAOMI_CAMERA_IMAGE_NAMES),"mediatek/pissarro")
+subdir-ccflags-y += -D_XIAOMI_PISSARRO_
+endif

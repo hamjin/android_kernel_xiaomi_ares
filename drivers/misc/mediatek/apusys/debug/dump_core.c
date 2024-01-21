@@ -27,7 +27,7 @@ static void set_dbg_sel(int val, int offset, int shift, int mask)
 
 	if (apu_top == NULL) /* Skip if apu_top is not valid */
 		return;
-
+	
 	tmp = ioread32(target);
 
 	tmp = (tmp & ~(mask << shift)) | (val << shift);
@@ -217,7 +217,6 @@ int apusys_dump_init(struct device *dev)
 
 	if (apu_top == NULL || apu_to_infra_top == NULL)
 		return -EIO;
-
 
 	/*Pre-allocate dump buffer size*/
 	for (i = 0; i < SEGMENT_COUNT; i++)

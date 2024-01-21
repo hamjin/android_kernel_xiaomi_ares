@@ -414,7 +414,6 @@ long ccci_fsm_ioctl(int md_id, unsigned int cmd, unsigned long arg)
 	int ret = 0;
 	enum MD_STATE_FOR_USER state_for_user;
 	unsigned int data;
-	static unsigned long boot_ready_count;
 	char *VALID_USER = "ccci_mdinit";
 
 	if (!ctl)
@@ -555,14 +554,11 @@ long ccci_fsm_ioctl(int md_id, unsigned int cmd, unsigned long arg)
 		break;
 	/* RILD nodify ccci power off md */
 	case CCCI_IOC_RILD_POWER_OFF_MD:
-		if (ctl->boot_count == boot_ready_count || ctl->md_state != READY)
-			break;
 		CCCI_NORMAL_LOG(md_id, FSM,
-				"MD power off called by %s, boot_count %d ,ready_count %d\n",
-				current->comm, ctl->boot_count, boot_ready_count);
+				"MD will power off ioctl called by %s\n",
+				current->comm);
 		inject_md_status_event(md_id, MD_STA_EV_RILD_POWEROFF_START,
 				current->comm);
-		boot_ready_count = ctl->boot_count;
 		break;
 	case CCCI_IOC_SET_EFUN:
 		if (copy_from_user(&data, (void __user *)arg,
