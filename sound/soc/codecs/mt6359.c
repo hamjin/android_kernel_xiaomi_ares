@@ -17,6 +17,9 @@
 
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#ifdef CONFIG_SND_JACK_INPUT_DEV_PISSARRO
+#include <sound/jack.h>
+#endif
 #include <mach/upmu_hw.h>
 
 #ifdef CONFIG_MTK_ACCDET
@@ -259,6 +262,7 @@ struct mt6359_priv {
 
 	int hp_gain_ctl;
 	int hp_hifi_mode;
+	int hp_pull_low_off;
 
 	struct mt6359_codec_ops ops;
 	struct dc_trim_data dc_trim;
@@ -290,7 +294,9 @@ struct mt6359_priv {
 	int vow_dmic_lp;
 	int vow_single_mic_select;
 };
-
+#ifdef CONFIG_SND_JACK_INPUT_DEV_PISSARRO
+extern struct snd_soc_jack g_usb_3_5_jack;
+#endif
 /* static function declaration */
 static int dc_trim_thread(void *arg);
 
@@ -655,9 +661,9 @@ static void zcd_enable(struct mt6359_priv *priv, bool enable, int device)
 	if (enable) {
 		switch (device) {
 		case DEVICE_RCV:
-			regmap_update_bits(priv->regmap,
-					   MT6359_AUDDEC_ANA_CON11,
-					   0x7, 0x2);
+//			regmap_update_bits(priv->regmap,
+//					   MT6359_AUDDEC_ANA_CON11,
+//					   0x7, 0x2);
 			break;
 		case DEVICE_LO:
 			regmap_update_bits(priv->regmap,
@@ -679,8 +685,8 @@ static void zcd_enable(struct mt6359_priv *priv, bool enable, int device)
 				   0x3 << 4, 0x0 << 4);
 		regmap_update_bits(priv->regmap, MT6359_ZCD_CON0,
 				   0x7 << 1, 0x5 << 1);
-		regmap_update_bits(priv->regmap, MT6359_ZCD_CON0,
-				   0x1 << 0, 0x1 << 0);
+//		regmap_update_bits(priv->regmap, MT6359_ZCD_CON0,
+//				   0x1 << 0, 0x1 << 0);
 	} else {
 		regmap_update_bits(priv->regmap, MT6359_AUDDEC_ANA_CON11,
 				   0x7, 0x4);
@@ -1965,9 +1971,12 @@ static int mtk_hp_disable(struct mt6359_priv *priv)
 	/* Disable HP aux output stage */
 	regmap_update_bits(priv->regmap, MT6359_AUDDEC_ANA_CON1,
 			   0x3 << 2, 0x0);
-
-	/* Disable AUD_ZCD */
-	zcd_enable(priv, false, DEVICE_HP);
+	if (priv->hp_pull_low_off) {
+		regmap_update_bits(priv->regmap, MT6359_AUDDEC_ANA_CON2,
+				RG_HPLOUTPUTSTBENH_VAUDP32_MASK_SFT, 0x0);
+		regmap_update_bits(priv->regmap, MT6359_AUDDEC_ANA_CON2,
+				RG_HPROUTPUTSTBENH_VAUDP32_MASK_SFT, 0x0);
+	}
 	return 0;
 }
 
@@ -2017,14 +2026,15 @@ static int mtk_hp_impedance_disable(struct mt6359_priv *priv)
 	regmap_update_bits(priv->regmap, MT6359_AUDDEC_ANA_CON0,
 			   0x000f, 0x0000);
 
+	if (!priv->hp_pull_low_off) {
 	/* Enable HPR/L STB enhance circuits for off state */
 	regmap_update_bits(priv->regmap, MT6359_AUDDEC_ANA_CON2,
-			   RG_HPROUTPUTSTBENH_VAUDP32_MASK_SFT,
-			   0x3 << RG_HPROUTPUTSTBENH_VAUDP32_SFT);
+			RG_HPROUTPUTSTBENH_VAUDP32_MASK_SFT,
+			0x3 << RG_HPROUTPUTSTBENH_VAUDP32_SFT);
 	regmap_update_bits(priv->regmap, MT6359_AUDDEC_ANA_CON2,
-			   RG_HPLOUTPUTSTBENH_VAUDP32_MASK_SFT,
-			   0x3 << RG_HPLOUTPUTSTBENH_VAUDP32_SFT);
-
+			RG_HPLOUTPUTSTBENH_VAUDP32_MASK_SFT,
+			0x3 << RG_HPLOUTPUTSTBENH_VAUDP32_SFT);
+	}
 	/* Disable AUD_ZCD */
 	zcd_enable(priv, false, DEVICE_HP);
 
@@ -6710,7 +6720,9 @@ static int mt6359_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_component *cmpnt = &codec->component;
 	struct mt6359_priv *priv = snd_soc_component_get_drvdata(cmpnt);
-
+#ifdef CONFIG_SND_JACK_INPUT_DEV_PISSARRO
+	int status = 0;
+#endif
 	snd_soc_component_init_regmap(cmpnt, priv->regmap);
 
 	/* add codec controls */
@@ -6736,7 +6748,13 @@ static int mt6359_codec_probe(struct snd_soc_codec *codec)
 	priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP3] = 3;
 
 	priv->hp_current_calibrate_val = get_hp_current_calibrate_val(priv);
-
+#ifdef CONFIG_SND_JACK_INPUT_DEV_PISSARRO
+	status = snd_soc_card_jack_new(cmpnt->card, "USB_3_5 Jack", (SND_JACK_UNSUPPORTED | SND_JACK_HEADSET),
+                                   &g_usb_3_5_jack, NULL, 0);
+	if (status) {
+		pr_notice("%s: Failed to create new jack USB_3_5 Jack\n", __func__);
+	}
+#endif
 	return 0;
 }
 
@@ -7904,6 +7922,11 @@ static int mt6359_platform_driver_probe(struct platform_device *pdev)
 #endif
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
+	of_property_read_u32(pdev->dev.of_node,
+			"always_pull_low_off",
+			&priv->hp_pull_low_off);
+	dev_info(&pdev->dev, "%s(), hp_pull_low_off=%d\n",
+			__func__, priv->hp_pull_low_off);
 
 #ifdef CONFIG_DEBUG_FS
 	/* create debugfs file */
